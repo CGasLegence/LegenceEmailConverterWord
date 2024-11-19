@@ -568,6 +568,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <Content Include="Templates\CMTA.docx" />
+    <Content Include="Templates\Legence.docx" />
+    <Content Include="Templates\OCI.docx" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
