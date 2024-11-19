@@ -1,47 +1,94 @@
-﻿<!-- Copyright (c) Microsoft Corporation. All rights reserved. Licensed under the MIT License. -->
-<!DOCTYPE html>
-<html>
-
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
-    <!-- Office JavaScript API -->
-    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-
-    <script src="officeToHtml.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOCX to HTML Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
-
 <body>
-    <p>Select BU for this template.</p>
-    <button id="convertButton">Convert to HTML</button>
+    <h1>DOCX to HTML Converter</h1>
+    <button id="convert">Convert DOCX to HTML</button>
+    <div id="output"></div>
 
-    <script src="taskpane.js"></script>
-    <select id="format">
-        <option value="text">CMTA</option>
-        <option value="text">Belaire</option>
-        <option value="text">A.O. Reed</option>
-    </select>
-    <!-- The following image URL tracks diagnostic data for this sample add-in. Please remove the image tag if you reuse this sample in your own code project. -->
+    <script>
+        async function convertDocxToHtml(filePath) {
+            // Fetch the DOCX file
+            const response = await fetch(filePath);
+            const blob = await response.blob();
+            const zip = await JSZip.loadAsync(blob);
 
-</body>
+            // Extract the document.xml file from the DOCX structure
+            const docXml = await zip.file("word/document.xml").async("string");
 
-<!--<script>
-    Office.onReady((info) => {
-        // Check that we loaded into Word
-        if (info.host === Office.HostType.Word) {
-            document.getElementById("helloButton").onclick = sayHello;
+            // Parse the XML and convert it into HTML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(docXml, "application/xml");
+            const body = xmlDoc.getElementsByTagName("w:body")[0];
+
+            // Recursive function to process nodes and generate HTML
+            function processNode(node) {
+                if (node.nodeName === "w:p") {
+                    // Paragraph
+                    const paragraph = document.createElement("p");
+                    node.childNodes.forEach(child => {
+                        const content = processNode(child);
+                        if (content) paragraph.appendChild(content);
+                    });
+                    return paragraph;
+                } else if (node.nodeName === "w:r") {
+                    // Run
+                    const span = document.createElement("span");
+                    node.childNodes.forEach(child => {
+                        const content = processNode(child);
+                        if (content) span.appendChild(content);
+                    });
+                    return span;
+                } else if (node.nodeName === "w:t") {
+                    // Text
+                    return document.createTextNode(node.textContent);
+                } else if (node.nodeName === "w:tbl") {
+                    // Table
+                    const table = document.createElement("table");
+                    node.childNodes.forEach(child => {
+                        const content = processNode(child);
+                        if (content) table.appendChild(content);
+                    });
+                    return table;
+                } else if (node.nodeName === "w:tr") {
+                    // Table Row
+                    const row = document.createElement("tr");
+                    node.childNodes.forEach(child => {
+                        const content = processNode(child);
+                        if (content) row.appendChild(content);
+                    });
+                    return row;
+                } else if (node.nodeName === "w:tc") {
+                    // Table Cell
+                    const cell = document.createElement("td");
+                    node.childNodes.forEach(child => {
+                        const content = processNode(child);
+                        if (content) cell.appendChild(content);
+                    });
+                    return cell;
+                }
+                return null;
+            }
+
+            // Process the XML body
+            const htmlContent = document.createElement("div");
+            body.childNodes.forEach(node => {
+                const content = processNode(node);
+                if (content) htmlContent.appendChild(content);
+            });
+
+            return htmlContent.innerHTML;
         }
-    });
 
-    function sayHello() {
-        return Word.run((context) => {
-
-            // insert a paragraph at the start of the document.
-            const paragraph = context.document.body.insertParagraph("Hello World", Word.InsertLocation.start);
-
-            // sync the context to run the previous API call, and return.
-            return context.sync();
+        document.getElementById("convert").addEventListener("click", async () => {
+            const htmlOutput = await convertDocxToHtml("Templates/CMTA.docx");
+            document.getElementById("output").innerHTML = htmlOutput;
         });
-    }
-</script>-->
-
+    </script>
+</body>
 </html>
