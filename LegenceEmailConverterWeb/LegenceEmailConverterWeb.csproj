@@ -107,11 +107,6 @@
     <Content Include="Content\sass\Fabric.scss" />
     <Content Include="Content\sass\Fabric.Scoped.scss" />
     <None Include="Scripts\jquery-3.6.0-vsdoc.js" />
-    <Content Include="Functions\FunctionFile.html" />
-    <Content Include="Functions\FunctionFile.js" />
-    <Content Include="Home.css" />
-    <Content Include="Home.html" />
-    <Content Include="Home.js" />
     <Content Include="Images\AddinIcon.png" />
     <Content Include="Images\Button16x16.png" />
     <Content Include="Images\Button32x32.png" />
@@ -563,6 +558,8 @@
     <Content Include="Scripts\Office\metadata\endpoints.xml" />
     <Content Include="Scripts\Office\metadata\features.xml" />
     <Content Include="Scripts\Office\MicrosoftAjax.js" />
+    <Content Include="taskpane.html" />
+    <Content Include="taskpane.js" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
