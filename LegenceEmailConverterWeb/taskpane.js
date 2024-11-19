@@ -1,7 +1,7 @@
 ﻿async function convertLocalDocxToHtml() {
     try {
         // Path to the DOCX file relative to your web server
-        const filePath = "templates/cmta.docx";
+        const filePath = "Templates/CMTA.docx";
 
         // Fetch the file as a Blob
         const response = await fetch(filePath);
