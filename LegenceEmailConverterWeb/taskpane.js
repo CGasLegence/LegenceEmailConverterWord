@@ -1,105 +1,123 @@
-﻿async function saveDocument() {
+﻿// Main function to extract Open XML and convert to HTML
+async function extractOpenXmlAndConvert() {
     await Word.run(async (context) => {
         const body = context.document.body;
-        body.load("paragraphs, tables, inlinePictures");
+        const openXml = body.getOoxml(); // Get the document content as Open XML
         await context.sync();
-
-        // Start building the HTML content
-        let htmlContent = `<html><head><style>${getDefaultStyles()}</style></head><body>`;
-
-        // Process paragraphs with formatting
-        const paragraphs = body.paragraphs.items;
-        for (let para of paragraphs) {
-            para.load("font, text");
-            await context.sync();
-
-            const styles = getParagraphStyles(para.font);
-            htmlContent += `<p style="${styles}">${para.text.replace(/\n/g, "<br>")}</p>`;
-        }
-
-        // Convert inline images to Base64
-        const images = body.inlinePictures.items;
-        console.log(`Found ${images.length} images in the document.`); // Debugging
-
-        if (images.length > 0) {
-            for (let img of images) {
-                img.load("base64"); // Explicitly load the Base64 content
-            }
-            await context.sync();
-
-            // Process images after loading
-            images.forEach((img, index) => {
-                if (img.base64) {
-                    console.log(`Image ${index} Base64: ${img.base64.substring(0, 50)}...`); // Debugging
-                    htmlContent += `<img src="data:image/png;base64,${img.base64}" alt="Image ${index}" style="max-width: 100%;"/><br>`;
-                } else {
-                    console.warn(`Image ${index} has no Base64 data.`);
-                }
-            });
-        }
-
-        // Convert tables with borders, shading, and styles
-        const tables = body.tables.items;
-        for (let table of tables) {
-            table.load("values");
-            await context.sync();
-            htmlContent += convertTableToHTML(table);
-        }
-
-        htmlContent += "</body></html>";
-
-        // Save the generated HTML content to a local file
-        saveAsFile(htmlContent);
-    }).catch((error) => {
-        console.error("Error running Word API:", error);
-        alert("An error occurred while processing the document.");
+        convertOpenXmlToHtml(openXml.value); // Convert Open XML to HTML
     });
 }
 
-// Default styles for the HTML document
-function getDefaultStyles() {
-    return `
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        td, th { border: 1px solid black; padding: 8px; text-align: left; }
-    `;
+// Function to parse Open XML and convert it to HTML
+function convertOpenXmlToHtml(openXml) {
+    const xmlDoc = parseOpenXml(openXml); // Parse Open XML using DOMParser
+    const bodyNode = xmlDoc.getElementsByTagName("w:body")[0]; // Get the document body
+
+    // Initialize HTML content with styles
+    let htmlContent = "<html><head><style>";
+    htmlContent += "body { font-family: Arial, sans-serif; } table { border-collapse: collapse; }";
+    htmlContent += "table, th, td { border: 1px solid black; padding: 5px; }";
+    htmlContent += "</style></head><body>";
+
+    // Process the body node (paragraphs, tables, etc.)
+    htmlContent += processBody(bodyNode);
+
+    htmlContent += "</body></html>";
+
+    // Save the HTML file locally
+    saveAsHtml(htmlContent);
 }
 
-// Extract paragraph styles
-function getParagraphStyles(font) {
-    let styles = "";
-    if (font.color) styles += `color: ${font.color};`;
-    if (font.size) styles += `font-size: ${font.size}px;`;
-    if (font.bold) styles += "font-weight: bold;";
-    if (font.italic) styles += "font-style: italic;";
-    if (font.underline !== "None") styles += "text-decoration: underline;";
-    if (font.highlightColor) styles += `background-color: ${font.highlightColor};`;
-    if (font.name) styles += `font-family: ${font.name};`;
-    return styles;
+// Function to parse Open XML into a DOM-like structure
+function parseOpenXml(openXml) {
+    const parser = new DOMParser();
+    return parser.parseFromString(openXml, "application/xml");
 }
 
-// Convert a Word table to HTML with borders, shading, and styles
-function convertTableToHTML(table) {
-    let html = "<table style='border-collapse: collapse; width: 100%;'>";
+// Process the document body (<w:body>) and extract content
+function processBody(bodyNode) {
+    let html = "";
 
-    for (const row of table.values) {
-        html += "<tr>";
-        for (const cell of row) {
-            html += `<td>${cell}</td>`;
+    bodyNode.childNodes.forEach((child) => {
+        if (child.nodeName === "w:p") {
+            html += processParagraph(child); // Handle paragraphs
+        } else if (child.nodeName === "w:tbl") {
+            html += processTable(child); // Handle tables
         }
-        html += "</tr>";
-    }
+    });
 
+    return html;
+}
+
+// Process paragraphs (<w:p>) and text runs (<w:r>)
+function processParagraph(paragraphNode) {
+    let html = "<p>";
+
+    paragraphNode.childNodes.forEach((runNode) => {
+        if (runNode.nodeName === "w:r") {
+            html += processRun(runNode); // Handle individual text runs
+        }
+    });
+
+    html += "</p>";
+    return html;
+}
+
+// Process individual text runs (<w:r>) and apply styles
+function processRun(runNode) {
+    let html = "";
+    let styles = "";
+
+    // Check for formatting (bold, italic, underline, etc.)
+    if (runNode.getElementsByTagName("w:b").length > 0) styles += "font-weight: bold;";
+    if (runNode.getElementsByTagName("w:i").length > 0) styles += "font-style: italic;";
+    if (runNode.getElementsByTagName("w:u").length > 0) styles += "text-decoration: underline;";
+
+    // Font size and color
+    const sizeNode = runNode.getElementsByTagName("w:sz")[0];
+    if (sizeNode) styles += `font-size: ${sizeNode.getAttribute("w:val") / 2}pt;`;
+
+    const colorNode = runNode.getElementsByTagName("w:color")[0];
+    if (colorNode) styles += `color: #${colorNode.getAttribute("w:val")};`;
+
+    // Extract text content
+    const textNode = runNode.getElementsByTagName("w:t")[0];
+    if (textNode) html += `<span style="${styles}">${textNode.textContent}</span>`;
+
+    return html;
+}
+
+// Process tables (<w:tbl>) and convert to HTML
+function processTable(tableNode) {
+    let html = "<table>";
+    tableNode.childNodes.forEach((rowNode) => {
+        if (rowNode.nodeName === "w:tr") {
+            html += "<tr>";
+            rowNode.childNodes.forEach((cellNode) => {
+                if (cellNode.nodeName === "w:tc") {
+                    html += "<td>";
+                    html += processBody(cellNode); // Process cell content
+                    html += "</td>";
+                }
+            });
+            html += "</tr>";
+        }
+    });
     html += "</table><br>";
     return html;
 }
 
-// Function to save the HTML content as a local file
-function saveAsFile(content) {
+// Save the generated HTML as a local file
+function saveAsHtml(content) {
     const blob = new Blob([content], { type: "text/html" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "Converted.html";
+    link.download = "ConvertedDocument.html";
     link.click();
     URL.revokeObjectURL(link.href); // Clean up the URL object
 }
+
+// Attach the main function to a button or event
+Office.onReady(() => {
+    document.getElementById("convertButton").onclick = extractOpenXmlAndConvert;
+});
