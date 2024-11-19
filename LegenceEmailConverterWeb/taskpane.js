@@ -1,24 +1,27 @@
 ﻿async function convertLocalDocxToHtml() {
     try {
-        // Path to the existing DOCX file
-        const filePath = "Templates/CMTA.docx";
+        // Path to the DOCX file relative to your web server
+        const filePath = "templates/cmta.docx";
 
         // Fetch the file as a Blob
         const response = await fetch(filePath);
-        if (!response.ok) throw new Error(`Failed to fetch ${filePath}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch the file from ${filePath}. Status: ${response.status}`);
+        }
         const docxBlob = await response.blob();
 
-        // Read the Blob as ArrayBuffer (required by OfficeToHtml.js)
+        // Read the Blob as an ArrayBuffer (required by OfficeToHtml.js)
         const arrayBuffer = await docxBlob.arrayBuffer();
 
-        // Convert the DOCX file to HTML using OfficeToHtml.js
-        const htmlContent = OfficeToHtml.convert(arrayBuffer);
+        // Convert the DOCX content to HTML using OfficeToHtml.js
+        const htmlContent = await OfficeToHtml.convert(arrayBuffer);
 
-        // Save the generated HTML locally
+        // Log and save the HTML
+        console.log("Generated HTML:", htmlContent);
         saveAsHtml(htmlContent);
     } catch (error) {
         console.error("Error converting DOCX to HTML:", error);
-        alert("Failed to convert the document. Check console for details.");
+        alert(`Error: ${error.message}`);
     }
 }
 
