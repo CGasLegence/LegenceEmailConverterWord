@@ -19,6 +19,8 @@
 
         // Convert inline images to Base64
         const images = body.inlinePictures.items;
+        console.log(`Found ${images.length} images in the document.`); // Debugging
+
         if (images.length > 0) {
             for (let img of images) {
                 img.load("base64"); // Explicitly load the Base64 content
@@ -28,6 +30,7 @@
             // Process images after loading
             images.forEach((img, index) => {
                 if (img.base64) {
+                    console.log(`Image ${index} Base64: ${img.base64.substring(0, 50)}...`); // Debugging
                     htmlContent += `<img src="data:image/png;base64,${img.base64}" alt="Image ${index}" style="max-width: 100%;"/><br>`;
                 } else {
                     console.warn(`Image ${index} has no Base64 data.`);
@@ -47,6 +50,9 @@
 
         // Save the generated HTML content to a local file
         saveAsFile(htmlContent);
+    }).catch((error) => {
+        console.error("Error running Word API:", error);
+        alert("An error occurred while processing the document.");
     });
 }
 
@@ -79,8 +85,7 @@ function convertTableToHTML(table) {
     for (const row of table.values) {
         html += "<tr>";
         for (const cell of row) {
-            const styles = getCellStyles(cell);
-            html += `<td style="${styles}">${cell}</td>`;
+            html += `<td>${cell}</td>`;
         }
         html += "</tr>";
     }
@@ -89,26 +94,12 @@ function convertTableToHTML(table) {
     return html;
 }
 
-// Extract table cell styles, including shading and border color
-function getCellStyles(cell) {
-    let styles = "border: 1px solid black;"; // Default border style
-
-    // Extract specific border and shading styles
-    if (cell.shading) styles += `background-color: ${cell.shading};`;
-    if (cell.borderTop) styles += `border-top: ${cell.borderTop};`;
-    if (cell.borderBottom) styles += `border-bottom: ${cell.borderBottom};`;
-    if (cell.borderLeft) styles += `border-left: ${cell.borderLeft};`;
-    if (cell.borderRight) styles += `border-right: ${cell.borderRight};`;
-
-    return styles + " padding: 5px;";
-}
-
 // Function to save the HTML content as a local file
 function saveAsFile(content) {
     const blob = new Blob([content], { type: "text/html" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "ConvertedDocument.html";
+    link.download = "Converted.html";
     link.click();
     URL.revokeObjectURL(link.href); // Clean up the URL object
 }
